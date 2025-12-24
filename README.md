@@ -2,11 +2,11 @@
 
 ## Overview
 
-This repository provides a **compatibility patch** that allows **Rec Room** to launch on **Proton / Wine**.
+This repository provides a **compatibility patch** that allows **Rec Room** to launch and run on **Proton / Wine**.
 
 ⚠️ **Important:**
-The game **runs**, but **performance issues remain** (low FPS, stuttering, input latency).
-This project focuses on **startup compatibility**, not full performance parity with Windows.
+The game runs, but performance is **not yet equivalent to native Windows**.
+This project focuses on **compatibility and mitigation**, not a full performance fix.
 
 ---
 
@@ -15,8 +15,8 @@ This project focuses on **startup compatibility**, not full performance parity w
 * ✅ Game launches successfully
 * ✅ No missing DLL errors
 * ✅ Initial anti-cheat handshake passes
-* ⚠️ Severe FPS drop
-* ⚠️ Stuttering and unstable frame times
+* ⚠️ Low FPS in some scenes
+* ⚠️ Stuttering and unstable frame pacing
 * ⚠️ High CPU usage
 
 ---
@@ -25,78 +25,89 @@ This project focuses on **startup compatibility**, not full performance parity w
 
 ### CoreMessaging Compatibility Fix
 
-The included patch modifies Wine behavior related to **CoreMessaging** APIs.
+The included patch adjusts Wine’s **CoreMessaging** behavior to prevent startup failure.
 
-Specifically, it:
+It:
 
-* Prevents startup failure caused by missing CoreMessaging responses
 * Returns expected success states to the game
-* Allows the boot process to complete
+* Prevents early termination during boot
+* Allows the game to reach gameplay
 
-This enables the game to **start and reach gameplay**.
+This ensures the game **starts and remains running**.
+
+---
+
+## ⚠️ Important Requirement – Proton Prefix Creation
+
+**The game must be launched at least once before applying this patch.**
+
+This is required because:
+
+* Proton only creates the game prefix (`compatdata`) on the first launch
+* The patch script modifies files **inside the Proton prefix**
+* These files include Wine DLLs and system components used by Proton
+
+If the game has never been launched, the prefix **does not exist**, and the script will fail or apply nothing.
+
+### Required Steps
+
+1. Install the game
+2. Launch it once with Proton (even if it crashes or fails)
+3. Close the game
+4. Apply the patch
+5. Relaunch the game
 
 ---
 
 ## What This Patch Does NOT Do
 
 * ❌ Does not implement real Windows kernel services
-* ❌ Does not improve GPU performance
-* ❌ Does not fix Unity thread scheduling issues
 * ❌ Does not remove anti-cheat overhead
-
-The patch avoids crashes but **does not replicate native Windows behavior**.
-
----
-
-## Why Performance Is Still Poor
-
-### 1. Kernel-Level Expectations
-
-Rec Room relies on Windows services that:
-
-* Exist in kernel space on Windows
-* Are emulated in user space on Wine
-
-This causes:
-
-* High CPU overhead
-* Excessive context switching
-* Thread contention
+* ❌ Does not fully resolve Unity thread scheduling limitations
+* ❌ Does not guarantee Windows-level performance
 
 ---
 
-### 2. Unity Engine Behavior
+## Performance Workaround (Important)
 
-Unity relies heavily on:
+Significant performance improvements (reduced stutter and improved frame pacing) have been observed when launching the game with the following command:
 
-* Thread pools
-* Synchronization primitives
-* Message queues
+```bash
+WINEDLLOVERRIDES="coremessaging=n,b" PROTON_USE_WINED3D=0 DXVK_ASYNC=1 %command%
+```
 
-On Proton:
+### Explanation
 
-* Many calls take slower fallback paths
-* Frame pacing becomes unstable
+* **WINEDLLOVERRIDES="coremessaging=n,b"**
+  Forces Wine’s built-in CoreMessaging implementation and avoids degraded fallback paths that cause excessive CPU usage.
+
+* **PROTON_USE_WINED3D=0**
+  Ensures DXVK is used instead of WineD3D, preventing OpenGL fallback.
+
+* **DXVK_ASYNC=1**
+  Enables asynchronous shader compilation, reducing stutter and improving frame pacing.
 
 ---
 
-### 3. Degraded Runtime Mode
+## Results
 
-By bypassing certain checks:
+With this workaround:
 
-* The game continues running
-* But does so in a degraded compatibility state
+* ✅ Game remains stable
+* ✅ No DLL-related crashes
+* ✅ Noticeable reduction in stutter
+* ✅ Improved frame pacing
+* ⚠️ FPS may still be lower than Windows
+* ⚠️ CPU bottlenecks can still occur in complex scenes
 
-This results in:
-
-* CPU bottlenecks
-* Low and unstable FPS
+This mitigates the “slow-motion” / heavy lag behavior, but does not fully eliminate performance limitations.
 
 ---
 
 ## Requirements
 
 * Proton Experimental (Bleeding Edge)
+* Game must be launched once to generate the Proton prefix
 * Clean prefix recommended
 * Reinstall may be required after applying the patch
 
@@ -111,17 +122,18 @@ chmod +x install_patch.sh
 
 After installation:
 
-* Restart Steam
-* Clear shader cache if needed
-* Launch the game using Proton Experimental
+1. Restart Steam
+2. Set Proton Experimental (Bleeding Edge)
+3. Add the launch command above
+4. Launch the game
 
 ---
 
 ## Known Limitations
 
-* Performance will not match Windows
-* FPS improvements are limited by architecture
-* Further gains require upstream Wine/Proton changes or official developer support
+* Performance improvements are limited by Wine/Proton architecture
+* Further gains require upstream fixes or official developer support
+* Kernel-level Windows behavior cannot be fully replicated in user space
 
 ---
 
@@ -129,7 +141,7 @@ After installation:
 
 This project demonstrates that **Rec Room can run on Proton**, but also highlights the **architectural limits** of compatibility layers when kernel-level services and anti-cheat systems are involved.
 
-The remaining performance issues are **not configuration bugs**, but **fundamental design constraints**.
+Remaining performance issues are **not user configuration errors**, but **design constraints**.
 
 ---
 
@@ -138,4 +150,4 @@ The remaining performance issues are **not configuration bugs**, but **fundament
 This project is **not affiliated** with Rec Room Inc. or Valve.
 Use at your own risk.
 
----
+

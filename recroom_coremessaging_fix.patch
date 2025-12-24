@@ -1,0 +1,147 @@
+From: RecRoom Proton Fix <protonfix@example.com>
+Date: Mon, 23 Dec 2024 12:00:00 +0000
+Subject: [PATCH] coremessaging: Add stub for DllGetActivationFactory
+
+Rec Room game requires coremessaging.dll.DllGetActivationFactory to be
+implemented. This patch adds a minimal stub implementation that returns
+CLASS_E_CLASSNOTAVAILABLE to prevent crashes while allowing the game
+to handle the missing functionality gracefully.
+
+Fixes crash in Rec Room (Steam AppID 471710) when initializing Windows
+Runtime messaging components.
+
+---
+ dlls/coremessaging/Makefile.in     |  7 +++++++
+ dlls/coremessaging/main.c          | 85 ++++++++++++++++++++++++++++++++++
+ dlls/coremessaging/coremessaging.spec | 1 +
+ configure.ac                        |  1 +
+ 4 files changed, 94 insertions(+)
+ create mode 100644 dlls/coremessaging/Makefile.in
+ create mode 100644 dlls/coremessaging/main.c
+ create mode 100644 dlls/coremessaging/coremessaging.spec
+
+diff --git a/dlls/coremessaging/Makefile.in b/dlls/coremessaging/Makefile.in
+new file mode 100644
+index 0000000000..8a9c3d5f12
+--- /dev/null
++++ b/dlls/coremessaging/Makefile.in
+@@ -0,0 +1,7 @@
++MODULE    = coremessaging.dll
++IMPORTS   = combase uuid
++
++EXTRADLLFLAGS = -Wb,--prefer-native
++
++C_SRCS = \
++	main.c
+diff --git a/dlls/coremessaging/main.c b/dlls/coremessaging/main.c
+new file mode 100644
+index 0000000000..7c3e8f5a3c
+--- /dev/null
++++ b/dlls/coremessaging/main.c
+@@ -0,0 +1,85 @@
++/*
++ * Copyright 2024 Wine Project
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <stdarg.h>
++
++#define COBJMACROS
++#include "windef.h"
++#include "winbase.h"
++#include "winstring.h"
++#include "wine/debug.h"
++#include "objbase.h"
++#include "initguid.h"
++#include "activation.h"
++
++WINE_DEFAULT_DEBUG_CHANNEL(coremessaging);
++
++BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
++{
++    TRACE("(%p, %lu, %p)\n", instance, reason, reserved);
++
++    switch (reason)
++    {
++        case DLL_PROCESS_ATTACH:
++            DisableThreadLibraryCalls(instance);
++            break;
++    }
++
++    return TRUE;
++}
++
++/***********************************************************************
++ *      DllGetActivationFactory (coremessaging.@)
++ */
++HRESULT WINAPI DllGetActivationFactory(HSTRING class_str, IActivationFactory **factory)
++{
++    const WCHAR *buffer = WindowsGetStringRawBuffer(class_str, NULL);
++
++    FIXME("class %s stub!\n", debugstr_w(buffer));
++
++    if (!factory)
++        return E_INVALIDARG;
++
++    *factory = NULL;
++
++    /* Return CLASS_E_CLASSNOTAVAILABLE to indicate the class is not available
++     * This allows applications to handle the missing functionality gracefully
++     * instead of crashing with an unimplemented function error.
++     */
++    return CLASS_E_CLASSNOTAVAILABLE;
++}
++
++/***********************************************************************
++ *      DllCanUnloadNow (coremessaging.@)
++ */
++HRESULT WINAPI DllCanUnloadNow(void)
++{
++    TRACE("()\n");
++    return S_FALSE;
++}
++
++/***********************************************************************
++ *      DllGetClassObject (coremessaging.@)
++ */
++HRESULT WINAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, void **out)
++{
++    FIXME("(%s, %s, %p): stub\n", debugstr_guid(rclsid), debugstr_guid(riid), out);
++
++    if (!out) return E_INVALIDARG;
++    return CLASS_E_CLASSNOTAVAILABLE;
++}
+diff --git a/dlls/coremessaging/coremessaging.spec b/dlls/coremessaging/coremessaging.spec
+new file mode 100644
+index 0000000000..c0e8b8a5f3
+--- /dev/null
++++ b/dlls/coremessaging/coremessaging.spec
+@@ -0,0 +1 @@
++@ stdcall DllGetActivationFactory(ptr ptr) 
+diff --git a/configure.ac b/configure.ac
+index 1234567890..0987654321 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -1500,6 +1500,7 @@ WINE_CONFIG_MAKEFILE(dlls/comctl32)
+ WINE_CONFIG_MAKEFILE(dlls/comdlg32)
+ WINE_CONFIG_MAKEFILE(dlls/compstui)
+ WINE_CONFIG_MAKEFILE(dlls/comsvcs)
++WINE_CONFIG_MAKEFILE(dlls/coremessaging)
+ WINE_CONFIG_MAKEFILE(dlls/connect)
+ WINE_CONFIG_MAKEFILE(dlls/credui)
+ WINE_CONFIG_MAKEFILE(dlls/crtdll)
+-- 
+2.43.0
